@@ -73,6 +73,50 @@ Some notes on installation environment:
 - The model has been most extensively tested on GeForce RTX 3090, GeForce RTX 4090, and NVIDIA A100 GPUs, but should work on other recent cards with sufficient VRAM
 - This repo was developed on Linux, though Windows should work especially if using Docker
 
+### DGX Spark / ARM64 Installation
+
+Kimodo can run natively on NVIDIA DGX Spark (Grace ARM64 CPU and Blackwell GPU). The bundled
+MotionCorrection extension uses [SIMDe](https://github.com/simd-everywhere/simde) on ARM64 to map
+its SSE/AVX intrinsic API to ARM NEON. CUDA model inference continues to run on the Blackwell GPU.
+
+The following source installation flow has been validated on DGX Spark with Python 3.12,
+PyTorch built for CUDA 13.0, and an NVIDIA GB10 GPU:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential cmake libsimde-dev
+
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+```
+
+Install a CUDA-enabled AArch64 build of PyTorch that is compatible with the CUDA stack installed
+on your DGX Spark. Verify that PyTorch can see the Blackwell GPU before installing Kimodo:
+
+```bash
+python -c "import torch; print(torch.__version__, torch.version.cuda); print(torch.cuda.get_device_name(0))"
+```
+
+ScenePic 1.1.2 does not currently provide an AArch64 wheel on PyPI, and its PyPI source archive
+is missing a generated JavaScript build artifact. Install the same release from its official
+source tag before installing Kimodo:
+
+```bash
+python -m pip install "scenepic @ git+https://github.com/microsoft/scenepic.git@v1.1.2"
+python -m pip install -e .
+```
+
+Confirm the installation and CUDA execution:
+
+```bash
+python -m pip check
+python -c "import kimodo, motion_correction, torch; x = torch.tensor([1.0]).cuda(); print(torch.cuda.get_device_name(0), x.item())"
+```
+
+`pip check` should report `No broken requirements found`. If CMake reports that SIMDe headers
+are missing, confirm that `libsimde-dev` is installed on the host where `pip install` is running.
+
 ## Interactive Motion Authoring Demo
 
 <div align="center">

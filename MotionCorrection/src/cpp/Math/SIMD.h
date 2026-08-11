@@ -6,7 +6,16 @@
 #pragma once
 
 #include <stdint.h>
-#include <immintrin.h>
+
+// MotionCorrection's math code uses the x86 SSE/AVX intrinsic API. On ARM64,
+// SIMDe maps that API to NEON while keeping the existing math implementation
+// unchanged. x86 builds continue to use native compiler intrinsics.
+#if defined(__aarch64__) || defined(_M_ARM64)
+    #define SIMDE_ENABLE_NATIVE_ALIASES
+    #include <simde/x86/avx.h>
+#else
+    #include <immintrin.h>
+#endif
 
 namespace SIMD
 {

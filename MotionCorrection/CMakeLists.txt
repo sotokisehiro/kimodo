@@ -69,6 +69,17 @@ endif()
 
 target_compile_definitions(motion_correction_cpp_base PUBLIC EIGEN_MPL2_ONLY)
 
+# The math implementation is written against the x86 SSE/AVX intrinsic API.
+# On ARM64, use the system SIMDe headers to translate those intrinsics to NEON.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)")
+    find_path(SIMDE_INCLUDE_DIR simde/x86/avx.h)
+    if(NOT SIMDE_INCLUDE_DIR)
+        message(FATAL_ERROR "SIMDe headers are required on ARM64 (install libsimde-dev)")
+    endif()
+    target_include_directories(motion_correction_cpp_base PUBLIC ${SIMDE_INCLUDE_DIR})
+    message(STATUS "ARM64 detected: using SIMDe SSE/AVX compatibility backed by NEON")
+endif()
+
 # Compiler-specific settings
 if(MSVC)
     # MSVC-specific flags
@@ -76,7 +87,11 @@ if(MSVC)
 else()
     # GCC/Clang flags (also applies to MinGW on Windows)
     # Enable SSE4.1 and AVX instructions for SIMD operations
-    target_compile_options(motion_correction_cpp_base PRIVATE -Wall -Wextra -msse4.1 -mavx)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|AMD64)")
+        target_compile_options(motion_correction_cpp_base PRIVATE -Wall -Wextra -msse4.1 -mavx)
+    else()
+        target_compile_options(motion_correction_cpp_base PRIVATE -Wall -Wextra)
+    endif()
 endif()
 
 # Python bindings
