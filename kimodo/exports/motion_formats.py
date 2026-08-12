@@ -10,7 +10,7 @@ from typing import Literal
 import numpy as np
 
 MotionSourceFormat = Literal["amass", "kimodo", "soma-bvh", "g1-csv"]
-MotionTargetFormat = Literal["amass", "kimodo", "soma-bvh", "g1-csv"]
+MotionTargetFormat = Literal["amass", "kimodo", "soma-bvh", "g1-csv", "mmd-vmd"]
 NpzMotionKind = Literal["amass", "kimodo"]
 
 
@@ -47,6 +47,8 @@ def infer_target_format_from_path(path: str, from_fmt: MotionSourceFormat) -> Mo
         return "soma-bvh"
     if ext == ".csv":
         return "g1-csv"
+    if ext == ".vmd":
+        return "mmd-vmd"
     if ext == ".npz":
         if from_fmt == "amass":
             return "kimodo"

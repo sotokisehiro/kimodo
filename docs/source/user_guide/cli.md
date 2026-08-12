@@ -55,6 +55,10 @@ CLI generation uses a single **output stem** (`--output`) for all formats (NPZ, 
 
 Use the `--bvh` flag to also export BVH (SOMA only) to the same stem.
 
+Use `--vmd` to also export a 30 fps MikuMikuDance VMD motion for SOMA models. `--vmd-model-name` controls the model name stored in the file, and `--vmd-scale` overrides the automatic SOMA-height to MMD-unit conversion. VMD export uses standard Japanese MMD bone names and disables foot IK so the generated leg rotations play as FK.
+
+Use the packaged `kimodo/assets/mmd/kimodo_reference.pmx` model for a known-compatible MMD playback test. Regenerate it with `kimodo_make_mmd_reference` if the skeleton mapping changes.
+
 ### Output Rest Pose
 
 For SOMA-based Kimodo models, motions can be exported with respect to two different rest poses. The default rest pose, that is always used by the `NPZ` format, is a standard T-pose consistent with the canonical T-pose of the SOMA model. For `BVH` outputs, the default rest pose is a non-standard pose, but it is consistent with the BVH format of the [BONES-SEED dataset](https://huggingface.co/datasets/bones-studio/seed). To output a `BVH` file with the standard T-pose as the rest pose, you can use the `--bvh_standard_tpose` option.
@@ -81,6 +85,9 @@ To see all available flags, run `kimodo_gen --help`. They are:
 - `--save_example_dir`: If given, saves outputs to an "example" directory structure that can be loaded in the Kimodo demo.
 - `--bvh`: Optional flag. When set, also export BVH (SOMA models only) using the same stem as `--output`.
 - `--bvh_standard_tpose`: If exporting BVH, export with the rest pose being the standard T-pose rather than the rest pose consistent with the BONES-SEED dataset.
+- `--vmd`: Also export a MikuMikuDance VMD motion (SOMA models only).
+- `--vmd-model-name`: Model name embedded in the VMD header.
+- `--vmd-scale`: Metres-to-MMD-unit scale; defaults to a 20-unit target height.
 - `--seed`: Seed for reproducible results
 - `--no-postprocess`: Disable post-processing (includes foot skate cleanup and constraint optimization)
 - `--input_folder`: Folder containing meta.json and optional constraints.json. If set, generation settings are loaded from meta.json. These are found in demo example folders.

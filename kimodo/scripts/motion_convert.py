@@ -23,6 +23,8 @@ def run_convert(
     z_up: bool,
     mujoco_rest_zero: bool,
     bvh_standard_tpose: bool = False,
+    vmd_model_name: str = "Kimodo",
+    vmd_scale: float | None = None,
 ) -> None:
     """Thin wrapper kept for backward compatibility; delegates to :func:`convert_motion_files`."""
     convert_motion_files(
@@ -34,12 +36,14 @@ def run_convert(
         z_up=z_up,
         mujoco_rest_zero=mujoco_rest_zero,
         bvh_standard_tpose=bvh_standard_tpose,
+        vmd_model_name=vmd_model_name,
+        vmd_scale=vmd_scale,
     )
 
 
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Convert Kimodo NPZ, AMASS NPZ, SOMA BVH, and G1 MuJoCo CSV.",
+        description="Convert Kimodo NPZ, AMASS NPZ, SOMA BVH, MMD VMD, and G1 MuJoCo CSV.",
     )
     p.add_argument("input", help="Input file path")
     p.add_argument("output", help="Output file path")
@@ -53,7 +57,7 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument(
         "--to",
         dest="to_fmt",
-        choices=("kimodo", "amass", "soma-bvh", "g1-csv"),
+        choices=("kimodo", "amass", "soma-bvh", "g1-csv", "mmd-vmd"),
         default=None,
         help="Output format (default: infer from output extension)",
     )
@@ -86,6 +90,17 @@ def build_argparser() -> argparse.ArgumentParser:
         default=False,
         help="If input or output is BVH: the BVH file uses the standard T-pose as its rest pose instead of the BONES-SEED rest pose.",
     )
+    p.add_argument(
+        "--vmd-model-name",
+        default="Kimodo",
+        help="Model name embedded in VMD output (CP932, at most 20 bytes).",
+    )
+    p.add_argument(
+        "--vmd-scale",
+        type=float,
+        default=None,
+        help="Metres-to-MMD-unit scale (default: infer a 20-unit character height).",
+    )
     return p
 
 
@@ -101,6 +116,8 @@ def main(argv: list[str] | None = None) -> int:
             z_up=not args.no_z_up,
             mujoco_rest_zero=args.mujoco_rest_zero,
             bvh_standard_tpose=args.bvh_standard_tpose,
+            vmd_model_name=args.vmd_model_name,
+            vmd_scale=args.vmd_scale,
         )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

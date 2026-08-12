@@ -39,6 +39,38 @@ When using a SOMA model and passing the `--bvh` flag to CLI generation, Kimodo a
 
 The exporter writes a standard plain-text BVH file and scales joint offsets and root motion from meters to centimeters (same format as the SEED dataset release). If multiple samples are generated, files are saved with suffixes like `_00`, `_01`, etc.
 
+## MikuMikuDance VMD Format for Kimodo-SOMA
+
+When using a SOMA model and passing `--vmd`, Kimodo writes a VMD 2 model-motion file alongside the NPZ output.
+
+- VMD export supports SOMA 30- and 77-joint motions; SOMA30 is expanded before export.
+- Motion is retargeted to conventional Japanese MMD humanoid bone names.
+- VMD frame numbers use MMD's 30 fps timeline. Other source rates are resampled.
+- Root motion is written to `センター`, relative to the first frame.
+- Kimodo's right-handed Y-up coordinates are converted to MMD's left-handed Y-up coordinates.
+- Leg motion is exported as FK and the `左足ＩＫ` and `右足ＩＫ` controls are disabled in the VMD.
+- Facial morphs, camera, lighting, and self-shadow animation are not exported.
+
+The default distance scale normalizes the SOMA character height to 20 MMD units. Use `--vmd-scale` when a target PMX model needs a different scale, and `--vmd-model-name` to set the model name embedded in the VMD header.
+
+VMD motions depend on the target PMX model's bind pose and bone layout. Models with non-standard axes or missing standard Japanese bone names may require additional retargeting.
+
+### Reference PMX model
+
+For MMD validation, the repository includes `kimodo/assets/mmd/kimodo_reference.pmx`. It is a low-poly, T-pose mannequin whose proportions, coordinate conversion, model name (`Kimodo`), and Japanese bone names match the VMD exporter. PMX text fields use BOM-less UTF-16LE for compatibility with MikuMikuDance. Its left side is blue and its right side is red so mirrored motion is easy to identify.
+
+To test an exported motion in MMD:
+
+1. Load `kimodo_reference.pmx` as the model.
+2. Load the generated `.vmd` as motion data.
+3. Start playback at frame 0. The VMD disables both foot IK bones so the generated FK leg rotations are used.
+
+The packaged model can be regenerated after skeleton or mapping changes with:
+
+```bash
+kimodo_make_mmd_reference
+```
+
 ## CSV Format for Kimodo-G1
 
 When using `Kimodo-G1` models and providing `--output` to CLI generation, the exporter writes MuJoCo `qpos`

@@ -66,7 +66,7 @@ def parse_args():
         "--output",
         type=str,
         default="output",
-        help="Output stem name: with one sample writes a single file per format (e.g. test.npz, test.csv); with multiple samples creates a folder and writes test_00.npz, test_01.npz, ... inside it. Used for NPZ, AMASS NPZ, CSV, and BVH.",
+        help="Output stem name used for NPZ, AMASS NPZ, CSV, BVH, and VMD outputs.",
     )
     parser.add_argument(
         "--save_example_dir",
@@ -86,6 +86,23 @@ def parse_args():
         "--bvh_standard_tpose",
         action="store_true",
         help="If exporting BVH, export with the rest pose being the standard T-pose rather than the rest pose consistent with the BONES-SEED dataset.",
+    )
+    parser.add_argument(
+        "--vmd",
+        action="store_true",
+        help="Also export MikuMikuDance VMD (SOMA models only); uses FK with foot IK disabled.",
+    )
+    parser.add_argument(
+        "--vmd-model-name",
+        type=str,
+        default="Kimodo",
+        help="Model name embedded in VMD output (CP932, at most 20 bytes).",
+    )
+    parser.add_argument(
+        "--vmd-scale",
+        type=float,
+        default=None,
+        help="Metres-to-MMD-unit scale (default: infer a 20-unit character height).",
     )
     parser.add_argument(
         "--no-postprocess",
@@ -433,6 +450,48 @@ def main():
                         skeleton=skeleton,
                         fps=model.fps,
                         standard_tpose=args.bvh_standard_tpose,
+                    )
+
+    # Save the MikuMikuDance VMD output.
+    if args.vmd:
+        skeleton = model.skeleton
+        if "somaskel" not in skeleton.name:
+            print("VMD export is only supported for SOMA skeletons. Skipping --vmd.")
+        else:
+            from kimodo.exports.vmd import save_motion_vmd
+            from kimodo.skeleton import SOMASkeleton30, global_rots_to_local_rots
+
+            if isinstance(skeleton, SOMASkeleton30):
+                skeleton = skeleton.somaskel77.to(device)
+
+            if n_samples == 1:
+                vmd_path = _single_file_path(output_base, ".vmd")
+                print(f"Saving the VMD output to {vmd_path}")
+                joints_pos = torch.from_numpy(output["posed_joints"][0]).to(device)
+                joints_rot = torch.from_numpy(output["global_rot_mats"][0]).to(device)
+                save_motion_vmd(
+                    vmd_path,
+                    global_rots_to_local_rots(joints_rot, skeleton),
+                    joints_pos[:, skeleton.root_idx, :],
+                    skeleton=skeleton,
+                    fps=model.fps,
+                    model_name=args.vmd_model_name,
+                    scale=args.vmd_scale,
+                )
+            else:
+                out_dir, _, base_name = _output_dir_and_path(output_base, "motion", ".vmd")
+                print(f"Saving the VMD output to {out_dir}/ ({base_name}_00.vmd ...)")
+                for i in range(n_samples):
+                    joints_pos = torch.from_numpy(output["posed_joints"][i]).to(device)
+                    joints_rot = torch.from_numpy(output["global_rot_mats"][i]).to(device)
+                    save_motion_vmd(
+                        os.path.join(out_dir, f"{base_name}_{i:02d}.vmd"),
+                        global_rots_to_local_rots(joints_rot, skeleton),
+                        joints_pos[:, skeleton.root_idx, :],
+                        skeleton=skeleton,
+                        fps=model.fps,
+                        model_name=args.vmd_model_name,
+                        scale=args.vmd_scale,
                     )
 
     # Save the example directory

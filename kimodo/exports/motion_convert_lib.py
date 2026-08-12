@@ -22,6 +22,7 @@ from kimodo.exports.motion_io import (
 )
 from kimodo.exports.mujoco import MujocoQposConverter
 from kimodo.exports.smplx import AMASSConverter
+from kimodo.exports.vmd import save_motion_vmd
 from kimodo.skeleton.registry import build_skeleton
 
 
@@ -35,6 +36,8 @@ def convert_motion_files(
     z_up: bool = True,
     mujoco_rest_zero: bool = False,
     bvh_standard_tpose: bool = False,
+    vmd_model_name: str = "Kimodo",
+    vmd_scale: float | None = None,
 ) -> None:
     """Convert a motion file between Kimodo-supported formats.
 
@@ -43,6 +46,7 @@ def convert_motion_files(
     - amass <-> kimodo
     - soma-bvh <-> kimodo
     - g1-csv <-> kimodo
+    - kimodo -> mmd-vmd
 
     Args:
         input_path: Source file (``.npz``, ``.bvh``, or ``.csv``).
@@ -56,6 +60,8 @@ def convert_motion_files(
         mujoco_rest_zero: For G1 CSV, joint angles relative to MuJoCo rest pose.
         bvh_standard_tpose: If input or output is BVH: the BVH file uses the standard T-pose 
             as its rest pose instead of the BONES-SEED rest pose.
+        vmd_model_name: Model name stored in a VMD header.
+        vmd_scale: Metres-to-MMD-unit scale. If omitted, inferred from SOMA height.
     """
     from_fmt = from_fmt or infer_source_format_from_path(input_path)
     to_fmt = to_fmt or infer_target_format_from_path(output_path, from_fmt)
@@ -138,9 +144,30 @@ def convert_motion_files(
         converter.save_csv(qpos, output_path)
         return
 
+    if pair == ("kimodo", "mmd-vmd"):
+        data, J = load_kimodo_npz_as_torch(input_path, ensure_complete=False)
+        if J == 30:
+            sk = build_skeleton(30)
+        elif J == 77:
+            sk = build_skeleton(77)
+        else:
+            raise ValueError(f"Kimodo→VMD requires a SOMA skeleton (30 or 77 joints); this file has J={J}.")
+        effective_source = resolve_source_fps(source_fps, "kimodo", input_path, None)
+        save_motion_vmd(
+            output_path,
+            data["local_rot_mats"],
+            data["root_positions"],
+            skeleton=sk,
+            fps=effective_source,
+            model_name=vmd_model_name,
+            scale=vmd_scale,
+        )
+        return
+
     raise ValueError(
         f"Unsupported conversion {from_fmt!r} → {to_fmt!r}. "
-        "Supported: amass↔kimodo (SMPL-X NPZ), soma-bvh↔kimodo, g1-csv↔kimodo."
+        "Supported: amass↔kimodo (SMPL-X NPZ), soma-bvh↔kimodo, "
+        "g1-csv↔kimodo, kimodo→mmd-vmd."
     )
 
 
@@ -157,3 +184,6 @@ def _validate_output_extension(to_fmt: str, output_path: str) -> None:
     elif to_fmt == "g1-csv":
         if not lower.endswith(".csv"):
             raise ValueError("G1 CSV output must use a .csv path.")
+    elif to_fmt == "mmd-vmd":
+        if not lower.endswith(".vmd"):
+            raise ValueError("MMD VMD output must use a .vmd path.")
