@@ -5,6 +5,296 @@
   <a href="https://research.nvidia.com/labs/sil/projects/kimodo/docs/index.html"><img src="https://img.shields.io/badge/docs-online-green.svg" alt="Documentation"></a>
 </p>
 
+## Windowsへのインストール
+
+ここでは、Windows 10/11（64-bit）にPython、PyTorch、Kimodoをソースからインストールし、モーションを生成できる状態にするまでの手順を説明します。KimodoはCPUでも起動できますが、実用的な時間で生成するにはCUDA対応のNVIDIA GPUを推奨します。
+
+### 1. 必要なソフトウェアをインストールする
+
+以下をインストールしてください。
+
+1. [Python公式サイト](https://www.python.org/downloads/windows/)から64-bit版Pythonをインストールします。PyTorchの対応範囲と依存パッケージの互換性を考慮し、Python 3.10または3.11を推奨します。従来のインストーラーを使う場合は、インストール画面で **Add Python to PATH** を有効にします。
+2. [Git for Windows](https://git-scm.com/download/win)をインストールします。
+3. [CMake](https://cmake.org/download/)のWindows x64 Installerをインストールし、インストーラーでCMakeを`PATH`へ追加します。
+4. [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)をインストールします。ワークロード **C++によるデスクトップ開発** を選び、MSVC C++ビルドツールとWindows SDKを含めます。これはKimodoに同梱された`MotionCorrection` C++拡張のビルドに必要です。
+5. NVIDIA GPUを使う場合は、[NVIDIAドライバ](https://www.nvidia.com/download/index.aspx)をインストールまたは更新します。
+
+PowerShellを新しく開き、インストールを確認します。
+
+```powershell
+py --version
+git --version
+cmake --version
+```
+
+Pythonが複数入っている場合は、次のように使用するバージョンを確認できます。
+
+```powershell
+py -3.11 --version
+```
+
+### 2. リポジトリを取得する
+
+まだ取得していない場合は、PowerShellで次を実行します。
+
+```powershell
+git clone https://github.com/nv-tlabs/kimodo.git
+cd kimodo
+```
+
+以降のコマンドは、`README.md`や`pyproject.toml`があるKimodoリポジトリのルートで実行してください。
+
+### 3. 仮想環境を作成する
+
+リポジトリ内に`.venv`を作成し、パッケージ管理ツールを更新します。このREADMEのコマンドは、仮想環境をactivateせず、`.venv`内のPythonを直接指定します。
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip setuptools wheel
+```
+
+Python 3.10をインストールした場合は、1行目を`py -3.10 -m venv .venv`に変更してください。
+
+### 4. PyTorchをインストールする
+
+[PyTorch公式インストールページ](https://pytorch.org/get-started/locally/)のセレクターで、次を選びます。
+
+- PyTorch Build: **Stable**
+- Your OS: **Windows**
+- Package: **Pip**
+- Language: **Python**
+- Compute Platform: 使用するNVIDIAドライバに適したCUDA、またはCPUのみなら **CPU**
+
+表示されたインストールコマンドの先頭にある`pip3`または`pip`を、`.\.venv\Scripts\python.exe -m pip`へ置き換えて実行します。例えば、公式ページに次のコマンドが表示された場合、
+
+```powershell
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/<CUDAに対応する名前>
+```
+
+このリポジトリでは次のように実行します。
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install torch torchvision torchaudio `
+  --index-url https://download.pytorch.org/whl/<CUDAに対応する名前>
+```
+
+`<CUDAに対応する名前>`をそのまま入力せず、必ず公式セレクターが表示した実際のURLを使ってください。通常、PyTorchのpipパッケージには必要なCUDAランタイムが含まれるため、別途CUDA Toolkitをインストールする必要はありませんが、対応するNVIDIAドライバは必要です。
+
+インストール後、PyTorchとCUDAの状態を確認します。
+
+```powershell
+.\.venv\Scripts\python.exe -c "import torch; print('PyTorch:', torch.__version__); print('CUDA build:', torch.version.cuda); print('CUDA available:', torch.cuda.is_available()); print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')"
+```
+
+NVIDIA GPUで生成する場合、`CUDA available: True`とGPU名が表示されることを確認してください。
+
+### 5. Kimodoをインストールする
+
+コマンドラインからモーションを生成するための基本構成は、次のコマンドで編集可能インストールします。この処理では`MotionCorrection` C++拡張もCMakeでビルドされます。
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e .
+```
+
+インタラクティブデモとSOMA関連の追加依存関係もインストールする場合は、代わりに次を実行します。
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[all]"
+```
+
+ビルド中にC++コンパイラが見つからない場合は、Visual Studio Build Toolsのインストールを確認し、**Developer PowerShell for VS 2022**から同じコマンドを実行してください。
+
+### 6. Hugging Faceを認証する
+
+Kimodoのテキストエンコーダは、アクセス承認が必要な`meta-llama/Meta-Llama-3-8B-Instruct`を使用します。
+
+1. Hugging Faceアカウントを作成します。
+2. [`meta-llama/Meta-Llama-3-8B-Instruct`のモデルページ](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct)で利用条件に同意し、アクセス承認を受けます。
+3. [Hugging Faceのトークン設定](https://huggingface.co/settings/tokens/new?tokenType=read)でRead権限のトークンを作成します。
+4. CLIをインストールしてログインします。
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade huggingface_hub
+.\.venv\Scripts\hf.exe auth login
+```
+
+プロンプトが表示されたら、作成したトークンを貼り付けます。トークンはREADME、スクリプト、Git管理下のファイルへ書き込まないでください。
+
+### 7. インストールを確認する
+
+Kimodo、PyTorch、`MotionCorrection`を同じ仮想環境から読み込めることを確認します。
+
+```powershell
+.\.venv\Scripts\python.exe -c "import kimodo, motion_correction, torch; print('Kimodo import: OK'); print('MotionCorrection import: OK'); print('CUDA available:', torch.cuda.is_available())"
+.\.venv\Scripts\python.exe -m pip check
+```
+
+`pip check`で`No broken requirements found.`と表示されれば、インストールされた依存関係に既知の不整合はありません。
+
+### 8. 最初のモーションを生成する
+
+テキストエンコーダをCPUへオフロードし、短いVMDモーションを生成します。`TEXT_ENCODER_DEVICE`に別の値が既に設定されている場合は、その値を上書きしません。
+
+```powershell
+if (-not $env:TEXT_ENCODER_DEVICE) {
+  $env:TEXT_ENCODER_DEVICE = "cpu"
+}
+.\.venv\Scripts\python.exe -m kimodo.scripts.generate `
+  "A person waves their right hand." `
+  --duration 3.0 `
+  --vmd `
+  --output outputs/first_wave
+```
+
+初回実行時はモデルが自動的にダウンロードされるため、完了まで時間がかかることがあります。正常に完了すると、少なくとも`outputs/first_wave.npz`と`outputs/first_wave.vmd`が生成されます。
+
+### 9. (Optional)VMDサイジングCLI版を用意する
+
+CodexなどのAIエージェントから操作する場合は、[VMDサイジングCLI版](https://github.com/errno-mmd/vmd_sizing/releases/download/ver5.01.08-CLI/VmdSizing_5.01.08_64bit_cli.exe)をダウンロードして、本リポジトリ(最初にgit cloneでできたフォルダ)に置いてください。
+AIエージェントがこのVMDサイジングCLI版のexeファイルを使用します。
+
+本CLI版は、miuさん作の[VMDサイジング](https://github.com/miu200521358/vmd_sizing)を改造したものです。本家VMDサイジングについては https://bowlroll.net/file/197410 か[Wiki](https://github.com/miu200521358/vmd_sizing/wiki/)を参照ください。
+
+### よくある問題
+
+- **`CUDA available: False`になる**：NVIDIAドライバを更新し、CPU版ではなく、公式セレクターで選んだCUDA版PyTorchを`.venv`へ再インストールしてください。
+- **`cmake`が見つからない**：CMakeを`PATH`へ追加し、PowerShellを開き直してください。
+- **C++コンパイラが見つからない**：Visual Studio Build Toolsの **C++によるデスクトップ開発** が入っていることを確認し、Developer PowerShellを使用してください。
+- **Hugging Faceの401／403エラーになる**：Llamaモデルのアクセス承認、Readトークン、`hf auth login`の状態を確認してください。
+- **GPUメモリが不足する**：`TEXT_ENCODER_DEVICE=cpu`を設定してください。テキストエンコーダをCPUへ移すため処理は少し遅くなりますが、GPUメモリ使用量を大幅に削減できます。
+- **モデルのダウンロードに失敗する**：インターネット接続、空きディスク容量、Hugging Face認証を確認してから再実行してください。
+
+## Kimodoモーション生成（CLIとCodex）
+
+### `kimodo.scripts.generate`を直接使う
+
+Windowsでは、リポジトリのルートから仮想環境のPythonを直接呼び出します。テキストエンコーダをCPUへオフロードすると、処理はやや遅くなりますがGPUメモリの使用量を抑えられます。
+
+```powershell
+if (-not $env:TEXT_ENCODER_DEVICE) {
+  $env:TEXT_ENCODER_DEVICE = "cpu"
+}
+.\.venv\Scripts\python.exe -m kimodo.scripts.generate `
+  "A person walks forward." `
+  --duration 5.0 `
+  --vmd `
+  --output outputs/walk_forward
+```
+
+第1引数の`prompt`には、生成したい動作を英語で指定します。複数の動作を連続させる場合は、各動作をピリオドで区切ります。`--duration`には全動作で共通の秒数、または各動作に対応する秒数を空白区切りの文字列で指定できます。
+
+```powershell
+.\.venv\Scripts\python.exe -m kimodo.scripts.generate `
+  "A person walks forward. They stop and wave their right hand." `
+  --duration "3.0 3.0" `
+  --vmd `
+  --output outputs/walk_and_wave
+```
+
+この例では、歩行を3秒、右手を振る動作を3秒生成します。秒数の個数は、ピリオドで区切った動作数と一致させてください。
+
+主なコマンドライン引数は次のとおりです。
+
+| 引数 | 既定値 | 説明 |
+| --- | --- | --- |
+| `prompt` | なし | 動作を表す英語テキスト。`--input_folder`を使わない場合は必須 |
+| `--model` | `kimodo-soma-rp` | 使用するKimodoモデル |
+| `--duration` | `5.0` | 動作の秒数。複数動作では`"3.0 2.0"`のように指定可能 |
+| `--num_samples` | `1` | 生成するサンプル数 |
+| `--diffusion_steps` | `100` | Diffusionのステップ数 |
+| `--num_transition_frames` | `5` | 連続する動作間の遷移用フレーム数 |
+| `--constraints` | なし | 保存済み制約リストのパス |
+| `--output` | `output` | NPZ、CSV、BVH、VMDなどに共通する出力名のベース |
+| `--save_example_dir` | 無効 | デモ互換の`motion.npz`、`constraints.json`、`meta.json`を含むフォルダも保存 |
+| `--bvh` | 無効 | BVHも出力（SOMAモデルのみ） |
+| `--bvh_standard_tpose` | 無効 | BVHのレストポーズを標準Tポーズにする |
+| `--vmd` | 無効 | MikuMikuDance用VMDも出力（SOMAモデルのみ） |
+| `--vmd-model-name` | `Kimodo` | VMD内のモデル名（CP932で最大20バイト） |
+| `--vmd-scale` | 自動推定 | メートルからMMD単位への変換倍率 |
+| `--no-postprocess` | 無効 | 足滑りを軽減する後処理を無効化（G1では常に無効） |
+| `--seed` | なし | 再現可能な生成に使う乱数シード |
+| `--input_folder` | なし | `meta.json`と任意の`constraints.json`を含む入力フォルダ |
+| `--cfg_type` | モデル既定 | CFG方式：`nocfg`、`regular`、`separated` |
+| `--cfg_weight` | モデル既定 | `regular`では重み1個、`separated`ではテキストと制約の重み2個 |
+
+CFGは、例えば次のように指定します。
+
+```powershell
+# 通常のCFG
+.\.venv\Scripts\python.exe -m kimodo.scripts.generate `
+  "A person jumps." --cfg_type regular --cfg_weight 2.0
+
+# テキストと制約に異なる重みを使用
+.\.venv\Scripts\python.exe -m kimodo.scripts.generate `
+  "A person jumps." --cfg_type separated --cfg_weight 2.0 1.5
+
+# CFGを無効化
+.\.venv\Scripts\python.exe -m kimodo.scripts.generate `
+  "A person jumps." --cfg_type nocfg
+```
+
+`--cfg_type`を省略して`--cfg_weight`だけを指定した場合、重み1個は`regular`、2個は`separated`として扱われます。`--input_folder`を使う場合、プロンプトと時間はフォルダ内の`meta.json`から読み込まれます。`num_samples`、`diffusion_steps`、`seed`も`meta.json`の値が優先され、CFGをCLIで明示した場合はCLIの値が優先されます。
+
+CLIは常にKimodo形式のNPZを保存し、`--vmd`などを付けると対応する形式も追加で保存します。すべての引数は次のコマンドで確認できます。
+
+```powershell
+.\.venv\Scripts\python.exe -m kimodo.scripts.generate --help
+```
+
+なお、kimodoが生成するモーションはTスタンスの人型3Dモデルを基準としているため、MMDのAスタンスのモデルに適用する前に、VMDサイジングで調整することをお勧めします。
+その際、モーション作成モデルPMXとして kimodo\assets\mmd\kimodo_reference.pmx を指定してください。
+
+### Codexから自然言語で使う
+
+このリポジトリの AGENTS.md にCodexへの指示が書かれているので、Codexで「プロジェクトを作成」し、ソースフォルダーとしてこのリポジトリ(最初にgit cloneでできたフォルダー)を指定してください。
+
+Codexには、作りたいモーションを日本語でそのまま指示できます。Codexは内容をKimodo向けの簡潔な英語プロンプトへ変換し、動作の順序、方向、左右、速度、スタイル、時間を対応する引数へ反映してコマンドを実行します。
+
+依頼例：
+
+> 3秒間前に歩いた後、立ち止まって3秒間右手を振るモーションを作って。
+
+このリポジトリでCodexに依頼した場合は、特に指定がなければ次の設定が使われます。
+
+- `.\.venv\Scripts\python.exe`で実行する
+- `TEXT_ENCODER_DEVICE`が未設定なら`cpu`を設定する
+- `--vmd`を付けてVMDも出力する
+- `outputs/`以下に内容を表す短い名前で保存する
+- 時間などが省略されていても、結果を大きく左右する曖昧さがなければ既定値を使って生成する
+
+モデル、時間、サンプル数、シード、制約、CFG、VMD以外の形式、出力先なども日本語で指定できます。例えば次のように依頼できます。
+
+> 走ってジャンプする6秒のモーションを3サンプル、seed 42で作って。BVHも出力して。
+
+Codexは、実行前に変換後の英語プロンプトを示し、完了後に生成ファイルのフルパスまたはエラーを報告します。
+
+### 生成したVMDをMMDのモデルへ適用する
+
+最初に、Codexに指示してMMDにモデルを読み込んでください。
+
+> MMDに "C:\MikuMikuDance_x64\UserFile\Model\初音ミクVer2.pmx" のモデルを読み込んで
+
+CodexにMMDへの適用まで依頼した場合、Kimodoが生成したVMDをモデルへ直接適用せず、先にVmdSizingで適用先モデルに合わせます。MMDの操作には[mmd-mcp](https://github.com/BeamManP/mmd-mcp)を使用します。例えば次のような指示を出せます。
+
+> 「垂直ジャンプ(3秒間)、振り返る(2秒間)、でんぐり返り(4秒間)」のモーションを生成し、MMD上の現在のモデルに適用して、MMD上で、カメラ表示への切り替えと再生を行って
+
+VmdSizingには、Kimodoが生成したVMDのフルパスと、MMDでモデルを読み込んだ際に指定したPMXファイルのフルパスを渡します。
+
+```powershell
+.\VmdSizing_5.01.08_64bit_cli.exe `
+  --motion_path "<Kimodoが生成したVMDのフルパス>" `
+  --org_model_path "kimodo\assets\mmd\kimodo_reference.pmx" `
+  --rep_model_path "<MMDに読み込んだ適用先モデルのフルパス>" `
+  --detail_stance_flg 1 `
+  --twist_flg 1
+```
+
+処理後は、元のVMD名に適用先モデル名、日付、時刻が追加されたVMDが`outputs`フォルダに生成されます。MMDにはこの新しいサイジング済みVMDを適用します。適用先モデルのフルパスを確認できない場合は、Codexが実行前にそのパスを尋ねます。
+
+===
+
+以下はオリジナルのREADME.mdの内容です。
+
 ## Overview
 
 Kimodo is a **ki**nematic **mo**tion **d**iffusi**o**n model trained on a large-scale (700 hours) commercially-friendly optical motion capture dataset. The model generates high-quality 3D human and robot motions, and is controlled through text prompts and an extensive set of constraints such as full-body pose keyframes, end-effector positions/rotations, 2D paths, and 2D waypoints. Full details of the model architecture and training are available in the [technical report](https://research.nvidia.com/labs/sil/projects/kimodo/assets/kimodo_tech_report.pdf).
