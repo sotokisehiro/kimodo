@@ -8,7 +8,9 @@ version = "1.0.0"
 description = "Kimodo motion generation model"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+
 dependencies = [
   "hydra-core>=1.3",
   "omegaconf>=2.3",
@@ -34,14 +36,14 @@ dependencies = [
 
 [project.optional-dependencies]
 demo = [
-  "viser @ git+https://github.com/nv-tlabs/kimodo-viser.git",
+  "viser @ git+https://github.com/sotokisehiro/kimodo-viser.git",
 ]
 soma = [
-  "py-soma-x @ git+https://github.com/NVlabs/SOMA-X.git"
+  "py-soma-x @ git+https://github.com/sotokisehiro/SOMA-X.git"
 ]
 all = [
-  "viser @ git+https://github.com/nv-tlabs/kimodo-viser.git",
-  "py-soma-x @ git+https://github.com/NVlabs/SOMA-X.git"
+  "viser @ git+https://github.com/sotokisehiro/kimodo-viser.git",
+  "py-soma-x @ git+https://github.com/sotokisehiro/SOMA-X.git"
 ]
 
 [project.scripts]
