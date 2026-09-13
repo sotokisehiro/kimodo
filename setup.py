@@ -29,9 +29,12 @@ class CMakeBuild(build_ext):
 
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
+        python_exe = sys.executable.replace("\\", "/")
         cmake_args = [
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}",
-            f"-DPYTHON_EXECUTABLE={sys.executable}",
+            f"-DPython3_EXECUTABLE={python_exe}",
+            f"-DPython_EXECUTABLE={python_exe}",
+            f"-DPYTHON_EXECUTABLE={python_exe}",
         ]
 
         cfg = "Debug" if self.debug else "Release"
